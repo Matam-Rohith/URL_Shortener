@@ -17,8 +17,6 @@
   },
   "dependencies": {
     "express": "^5.2.1",
-    "sqlite3": "^5.1.6",
-    "body-parser": "^1.20.2",
     "cors": "^2.8.5"
   }
 }
