@@ -118,17 +118,6 @@ Delete a shortened URL
 - **Database:** SQLite3
 - **Architecture:** RESTful API
 
-## Future Enhancements
-
-- User authentication and accounts
-- Custom short codes
-- QR codes
-- Link expiration
-- Analytics dashboard
-- Rate limiting
-- Database migration system
-- Admin panel
-
 ## License
 
 ISC
