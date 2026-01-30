@@ -20,24 +20,35 @@ let db = new sqlite3.Database(dbPath, (err) => {
     console.error("Database error:", err);
     console.log("Falling back to in-memory database");
     db = new sqlite3.Database(':memory:', (err2) => {
-      if (err2) console.error('In-memory DB error:', err2);
-      else console.log('Using in-memory SQLite database');
+      if (err2) {
+        console.error('In-memory DB error:', err2);
+      } else {
+        console.log('Using in-memory SQLite database');
+        ensureSchema();
+      }
     });
   } else {
     console.log("Connected to SQLite database");
+    ensureSchema();
   }
 });
 
-// Create table if it doesn't exist
-db.run(`
-  CREATE TABLE IF NOT EXISTS urls (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    shortCode TEXT UNIQUE NOT NULL,
-    originalUrl TEXT NOT NULL,
-    clicks INTEGER DEFAULT 0,
-    createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
-  )
-`);
+// Ensure DB schema exists
+function ensureSchema() {
+  const create = `
+    CREATE TABLE IF NOT EXISTS urls (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      shortCode TEXT UNIQUE NOT NULL,
+      originalUrl TEXT NOT NULL,
+      clicks INTEGER DEFAULT 0,
+      createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
+    )`;
+
+  db.run(create, (err) => {
+    if (err) console.error('Failed to create schema:', err);
+    else console.log('DB schema ensured');
+  });
+}
 
 // Validate URL
 function isValidUrl(string) {
