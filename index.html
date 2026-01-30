@@ -324,7 +324,7 @@
         <div id="resultSection" class="result-section">
           <div class="result-item">
             <input type="text" id="shortUrlInput" readonly>
-            <button class="copy-btn" onclick="copyToClipboard()">📋 Copy</button>
+            <button class="copy-btn" onclick="copyToClipboard(event)">📋 Copy</button>
           </div>
         </div>
       </div>
@@ -349,9 +349,9 @@
     <div class="urls-list">
       <h2>📝 All Shortened URLs</h2>
       <div class="tabs">
-        <button class="tab-btn active" onclick="showTab('all')">All URLs</button>
-        <button class="tab-btn" onclick="showTab('recent')">Recent</button>
-        <button class="tab-btn" onclick="showTab('popular')">Most Clicked</button>
+        <button class="tab-btn active" onclick="showTab('all', event)">All URLs</button>
+        <button class="tab-btn" onclick="showTab('recent', event)">Recent</button>
+        <button class="tab-btn" onclick="showTab('popular', event)">Most Clicked</button>
       </div>
       <div id="urlsContainer" class="loading">Loading...</div>
     </div>
@@ -403,17 +403,23 @@
     }
 
     // Copy to clipboard
-    function copyToClipboard() {
+    function copyToClipboard(e) {
       const input = document.getElementById("shortUrlInput");
       input.select();
       document.execCommand("copy");
 
-      const copyBtn = event.target;
-      const originalText = copyBtn.textContent;
-      copyBtn.textContent = "✓ Copied!";
-      setTimeout(() => {
-        copyBtn.textContent = originalText;
-      }, 2000);
+      try {
+        const copyBtn = e && e.target ? e.target : null;
+        if (copyBtn) {
+          const originalText = copyBtn.textContent;
+          copyBtn.textContent = "✓ Copied!";
+          setTimeout(() => {
+            copyBtn.textContent = originalText;
+          }, 2000);
+        }
+      } catch (err) {
+        // ignore UI update errors
+      }
     }
 
     // Load stats
@@ -527,12 +533,12 @@
     }
 
     // Show tab
-    function showTab(tab) {
+    function showTab(tab, e) {
       // Update button styles
       document.querySelectorAll('.tab-btn').forEach(btn => {
         btn.classList.remove('active');
       });
-      event.target.classList.add('active');
+      if (e && e.target) e.target.classList.add('active');
 
       // Load and display appropriate data
       loadUrls();

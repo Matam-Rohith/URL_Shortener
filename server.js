@@ -15,9 +15,17 @@ app.use(cors());
 const dbPath = process.env.NODE_ENV === 'production' 
   ? path.join('/tmp', 'urls.db')
   : path.join(__dirname, 'urls.db');
-const db = new sqlite3.Database(dbPath, (err) => {
-  if (err) console.error("Database error:", err);
-  else console.log("Connected to SQLite database");
+let db = new sqlite3.Database(dbPath, (err) => {
+  if (err) {
+    console.error("Database error:", err);
+    console.log("Falling back to in-memory database");
+    db = new sqlite3.Database(':memory:', (err2) => {
+      if (err2) console.error('In-memory DB error:', err2);
+      else console.log('Using in-memory SQLite database');
+    });
+  } else {
+    console.log("Connected to SQLite database");
+  }
 });
 
 // Create table if it doesn't exist
@@ -57,41 +65,26 @@ app.post("/shorten", (req, res) => {
   let shortCode = generateShortCode();
   const insertUrl = "INSERT INTO urls (shortCode, originalUrl) VALUES (?, ?)";
 
-  db.run(insertUrl, [shortCode, url], function (err) {
-    if (err) {
-      // If code exists, generate a new one
-      shortCode = generateShortCode();
-      db.run(insertUrl, [shortCode, url], function (err) {
-        if (err) {
-          return res.status(500).json({ error: "Failed to shorten URL" });
+  // Try inserting; if shortCode collides, retry a few times
+  const tryInsert = (attemptsLeft) => {
+    db.run(insertUrl, [shortCode, url], function (err) {
+      if (err) {
+        if (attemptsLeft > 0) {
+          shortCode = generateShortCode();
+          return tryInsert(attemptsLeft - 1);
         }
-        res.json({ shortUrl: `http://localhost:${PORT}/${shortCode}`, shortCode });
-      });
-    } else {
-      res.json({ shortUrl: `http://localhost:${PORT}/${shortCode}`, shortCode });
-    }
-  });
+        return res.status(500).json({ error: "Failed to shorten URL" });
+      }
+
+      const base = req.protocol + "://" + req.get("host");
+      res.json({ shortUrl: `${base}/${shortCode}`, shortCode });
+    });
+  };
+
+  tryInsert(3);
 });
 
-// GET: Redirect to original URL
-app.get("/:code", (req, res) => {
-  const { code } = req.params;
-  const selectUrl = "SELECT originalUrl, clicks FROM urls WHERE shortCode = ?";
-
-  db.get(selectUrl, [code], (err, row) => {
-    if (err) {
-      return res.status(500).send("Server error");
-    }
-
-    if (row) {
-      // Increment click count
-      db.run("UPDATE urls SET clicks = clicks + 1 WHERE shortCode = ?", [code]);
-      res.redirect(row.originalUrl);
-    } else {
-      res.status(404).send("Short URL not found");
-    }
-  });
-});
+// NOTE: redirect route is registered after API routes to avoid catching API paths
 
 // GET: Get all URLs and stats
 app.get("/api/stats", (req, res) => {
@@ -133,6 +126,37 @@ app.delete("/api/delete/:code", (req, res) => {
     }
     res.json({ message: "URL deleted successfully" });
   });
+});
+
+// GET: Redirect to original URL (only match short-code patterns)
+app.get('/:code([A-Za-z0-9]{6})', (req, res) => {
+  const { code } = req.params;
+  const selectUrl = 'SELECT originalUrl, clicks FROM urls WHERE shortCode = ?';
+
+  db.get(selectUrl, [code], (err, row) => {
+    if (err) {
+      console.error('DB error on redirect:', err);
+      return res.status(500).send('Server error');
+    }
+
+    if (row) {
+      db.run('UPDATE urls SET clicks = clicks + 1 WHERE shortCode = ?', [code], (uerr) => {
+        if (uerr) console.error('Failed to increment clicks:', uerr);
+      });
+      return res.redirect(row.originalUrl);
+    }
+
+    return res.status(404).send('Short URL not found');
+  });
+});
+
+// Global error handlers
+process.on('uncaughtException', (err) => {
+  console.error('Uncaught Exception:', err);
+});
+
+process.on('unhandledRejection', (reason) => {
+  console.error('Unhandled Rejection:', reason);
 });
 
 app.listen(PORT, () => {
