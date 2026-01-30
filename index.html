@@ -358,7 +358,8 @@
   </div>
 
   <script>
-    const API_BASE = "http://localhost:5000";
+    // Dynamically set API base - works for localhost and production
+    const API_BASE = window.location.origin;
 
     // Shorten URL
     async function shortenUrl() {

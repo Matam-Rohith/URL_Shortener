@@ -4,15 +4,17 @@ const path = require("path");
 const cors = require("cors");
 
 const app = express();
-const PORT = 5000;
+const PORT = process.env.PORT || 5000;
 
 // Middleware
 app.use(express.json());
 app.use(express.static(__dirname));
 app.use(cors());
 
-// Initialize SQLite database
-const dbPath = path.join(__dirname, "urls.db");
+// Initialize SQLite database (use /tmp for Render, or local for development)
+const dbPath = process.env.NODE_ENV === 'production' 
+  ? path.join('/tmp', 'urls.db')
+  : path.join(__dirname, 'urls.db');
 const db = new sqlite3.Database(dbPath, (err) => {
   if (err) console.error("Database error:", err);
   else console.log("Connected to SQLite database");
@@ -134,6 +136,7 @@ app.delete("/api/delete/:code", (req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`\n✓ Server running on http://localhost:${PORT}`);
-  console.log("✓ Database: urls.db");
+  console.log(`\n✓ Server running on port ${PORT}`);
+  console.log(`✓ Database: ${dbPath}`);
+  console.log(`✓ Environment: ${process.env.NODE_ENV || 'development'}`);
 });
